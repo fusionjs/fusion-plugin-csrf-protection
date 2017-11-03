@@ -11,12 +11,12 @@ steps:
       docker-compose#v1.5.2:
         run: fusion-plugin-csrf-protection
   - name: ":chrome: :white_check_mark:"
-    command: "./.buildkite/browserTests"
+    command: ".buildkite/browserTests"
     plugins:
       docker-compose#v1.5.2:
         run: fusion-plugin-csrf-protection
   - name: ":node: :white_check_mark:"
-    command: "./.buildkite/nodeTests"
+    command: ".buildkite/nodeTests"
     plugins:
       docker-compose#v1.5.2:
         run: fusion-plugin-csrf-protection
