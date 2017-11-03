@@ -14,7 +14,7 @@ export default ({fetch = window.fetch, expire = 86400, routePrefix} = {}) => {
     const isValid = verifyExpiry(token, expire);
     const isTokenRequired = !isValid || !token;
     if (isCsrfMethod && isTokenRequired) {
-      // TODO don't append prefix if injected fetch also injects prefix
+      // TODO(3) don't append prefix if injected fetch also injects prefix
       return fetch(prefix + '/csrf-token', {
         method: 'POST',
         credentials: 'same-origin',

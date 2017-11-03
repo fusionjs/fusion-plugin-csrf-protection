@@ -1,5 +1,7 @@
+const methods = {POST: 1, PUT: 1, PATCH: 1, DELETE: 1};
+
 export function verifyMethod(method) {
-  return ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+  return methods[method];
 }
 export function verifyExpiry(token, expire) {
   if (!token) return false;
