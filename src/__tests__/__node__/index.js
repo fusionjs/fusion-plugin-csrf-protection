@@ -140,7 +140,7 @@ test('fails with expired token', async t => {
   await new Promise(resolve => setTimeout(resolve, 2000));
 
   try {
-    const c = await request(app, '/test', {
+    await request(app, '/test', {
       method: 'POST',
       headers: {'x-csrf-token': ctx.response.headers['x-csrf-token']},
     });
