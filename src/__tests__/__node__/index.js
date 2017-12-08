@@ -27,15 +27,25 @@ test('valid token', async t => {
 
   const ctx = await request(app, '/csrf-token', {method: 'POST'});
   t.ok(ctx.response.headers['x-csrf-token'], 'has token');
-  t.equals(ctx.response.status, 200, 'has right status');
-  t.equals(ctx.response.body, '', 'has empty body');
-  const nextCtx = await request(app, '/test', {
+  t.equal(ctx.response.status, 200, 'has right status');
+  t.equal(ctx.response.body, '', 'has empty body');
+  const secret = Session.of(ctx).get('csrf-secret');
+  t.ok(secret, 'sets a session secret');
+
+  const renderCtx = await render(app, '/');
+  t.equal(ctx.response.status, 200, 'has right status');
+  t.equal(
+    secret,
+    Session.of(renderCtx).get('csrf-secret'),
+    'does not change the session secret'
+  );
+  const postCtx = await request(app, '/test', {
     method: 'POST',
     headers: {
       'x-csrf-token': ctx.response.headers['x-csrf-token'],
     },
   });
-  t.equal(nextCtx.response.status, 200);
+  t.equal(postCtx.response.status, 200);
   t.end();
 });
 
@@ -149,5 +159,17 @@ test('fails with expired token', async t => {
     t.equal(e.status, 403);
   }
 
+  t.end();
+});
+
+test('does not verify ignored paths', async t => {
+  const Session = getSession();
+  const app = new App('fake-element', el => el);
+  const CSRF = app.plugin(CsrfToken, {Session});
+  CSRF.of().ignore('/test');
+  const ctx = await request(app, '/test', {
+    method: 'POST',
+  });
+  t.equal(ctx.response.status, 200);
   t.end();
 });

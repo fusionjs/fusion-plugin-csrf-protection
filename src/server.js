@@ -85,7 +85,7 @@ export default ({Session, expire = 86400}) => {
           const token = generateToken(secret);
           ctx.body.body.push(
             html`<script id="__CSRF_TOKEN__" type="application/json">${JSON.stringify(
-              {token}
+              token
             )}</script>`
           );
         }
