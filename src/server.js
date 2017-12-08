@@ -1,4 +1,4 @@
-import {Plugin} from 'fusion-core';
+import {Plugin, html} from 'fusion-core';
 import assert from 'assert';
 import crypto from 'crypto';
 import base64Url from 'base64-url';
@@ -48,12 +48,6 @@ export default ({Session, expire = 86400}) => {
     return next();
   }
 
-  function handleSSR(ctx, next) {
-    const session = Session.of(ctx);
-    loadOrGenerateSecret(session);
-    return next();
-  }
-
   async function checkCSRF(ctx, next) {
     const session = Session.of(ctx);
 
@@ -62,23 +56,14 @@ export default ({Session, expire = 86400}) => {
     const isMatchingToken = verifyToken(secret, token);
     const isValidToken = verifyExpiry(token, expire);
     if (!isMatchingToken || !isValidToken) {
-      await next();
-      ctx.status = 403;
-      if (__DEV__) {
-        // in development, missing CSRF tokens are most likely a developer mistake
-        // so we provide an explanation of how to fix it
-        ctx.status = 500;
-        ctx.body =
-          'CSRF Token configuration error: ' +
+      const message = __DEV__
+        ? 'CSRF Token configuration error: ' +
           'add the option {fetch: CsrfToken.fetch} to ' +
-          'the 2nd argument of app.plugin(yourPlugin)';
-      } else {
-        // in production, provide a relevant error message
-        ctx.body = 'Invalid CSRF token';
-      }
-      if (ctx.headers.accept === 'application/json') {
-        ctx.body = JSON.stringify({error: ctx.body});
-      }
+          'the 2nd argument of app.plugin(yourPlugin)'
+        : 'Invalid CSRF Token';
+      ctx.throw(403, message);
+    } else {
+      return next();
     }
   }
 
@@ -89,13 +74,23 @@ export default ({Session, expire = 86400}) => {
       }
     },
     async middleware(ctx, next) {
-      if (ctx.element) {
-        return handleSSR(ctx, next);
-      } else if (ctx.path === '/csrf-token' && ctx.method === 'POST') {
+      if (ctx.path === '/csrf-token' && ctx.method === 'POST') {
         return handleTokenPost(ctx, next);
       } else if (verifyMethod(ctx.method) && !ignored.has(ctx.path)) {
         return checkCSRF(ctx, next);
-      } else return next();
+      } else {
+        const session = Session.of(ctx);
+        const secret = loadOrGenerateSecret(session);
+        if (ctx.element) {
+          const token = generateToken(secret);
+          ctx.body.body.push(
+            html`<script id="__CSRF_TOKEN__" type="application/json">${JSON.stringify(
+              {token}
+            )}</script>`
+          );
+        }
+        return next();
+      }
     },
   });
 };
