@@ -1,8 +1,16 @@
-import {Plugin, html} from 'fusion-core';
-import assert from 'assert';
+// @flow
+declare var __DEV__: Boolean;
+
+import {GenericSessionToken} from 'fusion-types';
+import {html, withDependencies, withMiddleware} from 'fusion-core';
 import crypto from 'crypto';
 import base64Url from 'base64-url';
-import {verifyMethod, verifyExpiry} from './shared';
+import {
+  verifyMethod,
+  verifyExpiry,
+  CSRFIgnoreRoutes,
+  CSRFTokenExpire,
+} from './shared';
 
 function generateSecret() {
   const random = crypto.randomBytes(32);
@@ -35,12 +43,15 @@ function loadOrGenerateSecret(session) {
   return secret;
 }
 
-export default ({Session, expire = 86400}) => {
-  assert(Session, '{Session} is a required dependency of CsrfToken');
-  const ignored = new Set();
+const CsrfPlugin = withDependencies({
+  Session: GenericSessionToken,
+  expire: CSRFTokenExpire,
+  ignored: CSRFIgnoreRoutes,
+})(deps => {
+  const {Session, expire, ignored} = deps;
 
   function handleTokenPost(ctx, next) {
-    const session = Session.of(ctx);
+    const session = Session.from(ctx);
     const secret = loadOrGenerateSecret(session);
     ctx.set('x-csrf-token', generateToken(secret));
     ctx.status = 200;
@@ -49,7 +60,7 @@ export default ({Session, expire = 86400}) => {
   }
 
   async function checkCSRF(ctx, next) {
-    const session = Session.of(ctx);
+    const session = Session.from(ctx);
 
     const token = ctx.headers['x-csrf-token'];
     const secret = session.get('csrf-secret');
@@ -67,30 +78,29 @@ export default ({Session, expire = 86400}) => {
     }
   }
 
-  return new Plugin({
-    Service: class CsrfProtection {
-      ignore(path) {
-        ignored.add(path);
+  async function csrfMiddleware(ctx, next) {
+    if (ctx.path === '/csrf-token' && ctx.method === 'POST') {
+      return handleTokenPost(ctx, next);
+    } else if (verifyMethod(ctx.method) && !ignored.has(ctx.path)) {
+      return checkCSRF(ctx, next);
+    } else {
+      const session = Session.from(ctx);
+      const secret = loadOrGenerateSecret(session);
+      if (ctx.element) {
+        const token = generateToken(secret);
+        ctx.template.body.push(
+          html`<script id="__CSRF_TOKEN__" type="application/json">${JSON.stringify(
+            token
+          )}</script>`
+        );
       }
-    },
-    async middleware(ctx, next) {
-      if (ctx.path === '/csrf-token' && ctx.method === 'POST') {
-        return handleTokenPost(ctx, next);
-      } else if (verifyMethod(ctx.method) && !ignored.has(ctx.path)) {
-        return checkCSRF(ctx, next);
-      } else {
-        const session = Session.of(ctx);
-        const secret = loadOrGenerateSecret(session);
-        if (ctx.element) {
-          const token = generateToken(secret);
-          ctx.body.body.push(
-            html`<script id="__CSRF_TOKEN__" type="application/json">${JSON.stringify(
-              token
-            )}</script>`
-          );
-        }
-        return next();
-      }
-    },
-  });
-};
+      return next();
+    }
+  }
+
+  const serverSideFetch = () =>
+    Promise.reject(new Error('Cannot use fetch on the server'));
+
+  return withMiddleware(csrfMiddleware, serverSideFetch);
+});
+export default CsrfPlugin;

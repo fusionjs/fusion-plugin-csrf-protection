@@ -1,12 +1,15 @@
+// @flow
 /* eslint-env browser */
+import {unescape, withDependencies} from 'fusion-core';
+import {verifyMethod, verifyExpiry, CSRFTokenExpire} from './shared';
+import {FetchToken} from 'fusion-types';
 
-import {Plugin, unescape} from 'fusion-core';
-import {verifyMethod, verifyExpiry} from './shared';
-
-export default ({fetch = window.fetch, expire = 86400, routePrefix} = {}) => {
-  const prefix =
-    routePrefix != null ? routePrefix : window.__ROUTE_PREFIX__ || ''; // created by fusion-core/src/server
-
+const BrowserCSRFPlugin = withDependencies({
+  fetch: FetchToken,
+  expire: CSRFTokenExpire,
+})(({fetch, expire}) => {
+  // TODO: How does route prefix fit into this?
+  const prefix = window.__ROUTE_PREFIX__ || ''; // created by fusion-core/src/server
   const tokenElement = document.getElementById('__CSRF_TOKEN__');
 
   let token = tokenElement
@@ -41,12 +44,7 @@ export default ({fetch = window.fetch, expire = 86400, routePrefix} = {}) => {
       });
     }
   }
+  return fetchWithCsrfToken;
+});
 
-  return new Plugin({
-    Service: class CsrfProtection {
-      fetch(...args) {
-        return fetchWithCsrfToken(...args);
-      }
-    },
-  });
-};
+export default BrowserCSRFPlugin;

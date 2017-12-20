@@ -1,12 +1,16 @@
 import App from 'fusion-core';
 import {request, render} from 'fusion-test-utils';
 import test from 'tape-cup';
-import CsrfToken from '../../server';
+import CsrfPlugin from '../../server';
+import {GenericSessionToken} from 'fusion-types';
+import {request, render} from 'fusion-test-utils';
+import App from 'fusion-core';
+import {CSRFTokenExpire, CSRFIgnoreRoutes} from '../../shared';
 
 function getSession() {
   const state = {};
   const Session = {
-    of() {
+    from() {
       return {
         set(key, value) {
           return (state[key] = value);
@@ -20,23 +24,24 @@ function getSession() {
   return Session;
 }
 
-test('valid token', async t => {
+test.only('valid token', async t => {
   const Session = getSession();
   const app = new App('fake-element', el => el);
-  app.plugin(CsrfToken, {Session});
-
+  app.register(GenericSessionToken, () => Session);
+  app.register(CsrfPlugin);
+  app.resolve();
   const ctx = await request(app, '/csrf-token', {method: 'POST'});
   t.ok(ctx.response.headers['x-csrf-token'], 'has token');
   t.equal(ctx.response.status, 200, 'has right status');
   t.equal(ctx.response.body, '', 'has empty body');
-  const secret = Session.of(ctx).get('csrf-secret');
+  const secret = Session.from(ctx).get('csrf-secret');
   t.ok(secret, 'sets a session secret');
 
   const renderCtx = await render(app, '/');
   t.equal(ctx.response.status, 200, 'has right status');
   t.equal(
     secret,
-    Session.of(renderCtx).get('csrf-secret'),
+    Session.from(renderCtx).get('csrf-secret'),
     'does not change the session secret'
   );
   const postCtx = await request(app, '/test', {
@@ -52,7 +57,7 @@ test('valid token', async t => {
 test('creates a session on a GET request', async t => {
   const Session = getSession();
   const app = new App('fake-element', el => el);
-  app.plugin(CsrfToken, {Session});
+  app.plugin(CsrfPlugin, {Session});
 
   const ctx = await request(app, '/');
   t.notok(
@@ -60,14 +65,14 @@ test('creates a session on a GET request', async t => {
     'does not set x-csrf-token header'
   );
   t.equals(ctx.response.status, 200, 'has right status');
-  t.ok(Session.of(ctx).get('csrf-secret'), 'sets the session');
+  t.ok(Session.from(ctx).get('csrf-secret'), 'sets the session');
   t.end();
 });
 
 test('render request', async t => {
   const Session = getSession();
   const app = new App('fake-element', el => el);
-  app.plugin(CsrfToken, {Session});
+  app.plugin(CsrfPlugin, {Session});
 
   const ctx = await render(app, '/');
   t.notok(
@@ -75,7 +80,7 @@ test('render request', async t => {
     'does not set x-csrf-token header'
   );
   t.equals(ctx.response.status, 200, 'has right status');
-  t.ok(Session.of(ctx).get('csrf-secret'), 'sets the session');
+  t.ok(Session.from(ctx).get('csrf-secret'), 'sets the session');
   t.ok(
     ctx.response.body.includes('<script id="__CSRF_TOKEN__"'),
     'serializes token'
@@ -86,7 +91,7 @@ test('render request', async t => {
 test('fails with no session and invalid token', async t => {
   const Session = getSession();
   const app = new App('fake-element', el => el);
-  app.plugin(CsrfToken, {Session});
+  app.plugin(CsrfPlugin, {Session});
 
   try {
     await request(app, '/test', {
@@ -104,7 +109,7 @@ test('fails with no session and invalid token', async t => {
 test('fails with session and no token', async t => {
   const Session = getSession();
   const app = new App('fake-element', el => el);
-  app.plugin(CsrfToken, {Session});
+  app.plugin(CsrfPlugin, {Session});
 
   await request(app, '/csrf-token', {method: 'POST'});
 
@@ -123,7 +128,7 @@ test('fails with session and no token', async t => {
 test('fails with session and invalid token', async t => {
   const Session = getSession();
   const app = new App('fake-element', el => el);
-  app.plugin(CsrfToken, {Session});
+  app.plugin(CsrfPlugin, {Session});
 
   await request(app, '/csrf-token', {method: 'POST'});
 
@@ -143,7 +148,7 @@ test('fails with session and invalid token', async t => {
 test('fails with expired token', async t => {
   const Session = getSession();
   const app = new App('fake-element', el => el);
-  app.plugin(CsrfToken, {Session, expire: 1});
+  app.plugin(CsrfPlugin, {Session, expire: 1});
 
   const ctx = await request(app, '/csrf-token', {method: 'POST'});
 
@@ -165,7 +170,7 @@ test('fails with expired token', async t => {
 test('does not verify ignored paths', async t => {
   const Session = getSession();
   const app = new App('fake-element', el => el);
-  const CSRF = app.plugin(CsrfToken, {Session});
+  const CSRF = app.plugin(CsrfPlugin, {Session});
   CSRF.of().ignore('/test');
   const ctx = await request(app, '/test', {
     method: 'POST',

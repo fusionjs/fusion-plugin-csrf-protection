@@ -1,3 +1,4 @@
+import {createOptionalToken} from 'fusion-types';
 const methods = {POST: 1, PUT: 1, PATCH: 1, DELETE: 1};
 
 export function verifyMethod(method) {
@@ -10,3 +11,9 @@ export function verifyExpiry(token, expire) {
   if (isNaN(elapsed) || elapsed < 0 || elapsed >= expire) return false;
   return true;
 }
+
+export const CSRFTokenExpire = createOptionalToken('CSRFTokenExpire', 86400);
+export const CSRFIgnoreRoutes = createOptionalToken(
+  'CSRFIgnoreRoutes',
+  new Set()
+);
