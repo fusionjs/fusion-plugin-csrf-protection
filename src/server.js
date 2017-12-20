@@ -49,7 +49,7 @@ const CsrfPlugin = withDependencies({
   ignored: CSRFIgnoreRoutes,
 })(deps => {
   const {Session, expire, ignored} = deps;
-
+  const ignoreSet = new Set(ignored);
   function handleTokenPost(ctx, next) {
     const session = Session.from(ctx);
     const secret = loadOrGenerateSecret(session);
@@ -81,7 +81,7 @@ const CsrfPlugin = withDependencies({
   async function csrfMiddleware(ctx, next) {
     if (ctx.path === '/csrf-token' && ctx.method === 'POST') {
       return handleTokenPost(ctx, next);
-    } else if (verifyMethod(ctx.method) && !ignored.has(ctx.path)) {
+    } else if (verifyMethod(ctx.method) && !ignoreSet.has(ctx.path)) {
       return checkCSRF(ctx, next);
     } else {
       const session = Session.from(ctx);
@@ -103,4 +103,5 @@ const CsrfPlugin = withDependencies({
 
   return withMiddleware(csrfMiddleware, serverSideFetch);
 });
+
 export default CsrfPlugin;
