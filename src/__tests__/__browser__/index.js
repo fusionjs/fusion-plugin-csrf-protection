@@ -1,13 +1,28 @@
 /* eslint-env browser */
 import test from 'tape-cup';
-import App from 'fusion-core';
-import CsrfToken from '../../index';
+import App, {withDependencies} from 'fusion-core';
+import CsrfPlugin from '../../index';
+import {FetchToken, createToken} from 'fusion-types';
+import {CSRFTokenExpire} from '../../shared';
+
+const BaseFetchToken = createToken('BaseFetch');
+
+function getApp(fetchFn) {
+  const app = new App('element', el => el);
+  app.configure(BaseFetchToken, fetchFn);
+  app.register(FetchToken, CsrfPlugin).alias(FetchToken, BaseFetchToken);
+  return app;
+}
 
 test('exposes right methods', t => {
-  const Csrf = CsrfToken();
-  const csrf = Csrf.of();
-  t.equal(typeof csrf.fetch, 'function', 'instance fetch function');
-  t.end();
+  const app = getApp(window.fetch);
+  app.register(
+    withDependencies({fetch: FetchToken})(({fetch}) => {
+      t.equal(typeof fetch, 'function');
+      t.end();
+    })
+  );
+  app.resolve();
 });
 
 test('includes routePrefix if exists', async t => {
@@ -29,43 +44,20 @@ test('includes routePrefix if exists', async t => {
       },
     });
   };
-  const app = new App('element', el => el);
-  const csrf = app.plugin(CsrfToken, {fetch}).of();
-  const {url, args} = await csrf.fetch('/hello', {method: 'POST'});
-  t.equals(called, 2, 'preflight works');
-  t.equals(url, '/something/hello', 'ok url');
-  t.equals(args.credentials, 'same-origin', 'ok credentials');
-  t.equals(args.headers['x-csrf-token'].split('-')[1], 'test', 'ok token');
-  delete window.__ROUTE_PREFIX__;
-  t.end();
-});
-
-test('supports passing in route prefix', async t => {
-  let called = 0;
-  const expectedUrls = ['/prefix/csrf-token', '/prefix/hello'];
-  const fetch = (url, args) => {
-    called++;
-    t.equal(url, expectedUrls.shift());
-    return Promise.resolve({
-      url,
-      args,
-      headers: {
-        get(key) {
-          if (key === 'x-csrf-token') {
-            return Math.round(Date.now() / 1000) + '-test';
-          }
-        },
-      },
-    });
-  };
-  const app = new App('element', el => el);
-  const csrf = app.plugin(CsrfToken, {fetch, routePrefix: '/prefix'}).of();
-  const {url, args} = await csrf.fetch('/hello', {method: 'POST'});
-  t.equals(called, 2, 'preflight works');
-  t.equals(url, '/prefix/hello', 'ok url');
-  t.equals(args.credentials, 'same-origin', 'ok credentials');
-  t.equals(args.headers['x-csrf-token'].split('-')[1], 'test', 'ok token');
-  t.end();
+  const app = getApp(fetch);
+  app.register(
+    withDependencies({fetch: FetchToken})(async ({fetch}) => {
+      t.equal(typeof fetch, 'function');
+      const {url, args} = await fetch('/hello', {method: 'POST'});
+      t.equals(called, 2, 'preflight works');
+      t.equals(url, '/something/hello', 'ok url');
+      t.equals(args.credentials, 'same-origin', 'ok credentials');
+      t.equals(args.headers['x-csrf-token'].split('-')[1], 'test', 'ok token');
+      delete window.__ROUTE_PREFIX__;
+      t.end();
+    })
+  );
+  app.resolve();
 });
 
 test('supports getting initial token from dom element', async t => {
@@ -95,19 +87,28 @@ test('supports getting initial token from dom element', async t => {
       },
     });
   };
-  const app = new App('element', el => el);
-  const csrf = app.plugin(CsrfToken, {fetch}).of();
-  const {url, args} = await csrf.fetch('/hello', {method: 'POST'});
-  t.equals(called, 1, 'does not preflight if deserializing token from html');
-  t.equals(url, '/hello', 'ok url');
-  t.equals(args.credentials, 'same-origin', 'ok credentials');
-  t.equals(
-    args.headers['x-csrf-token'].split('-')[1],
-    '</script>token<script>',
-    'unescapes the token correctly'
+
+  const app = getApp(fetch);
+  app.register(
+    withDependencies({fetch: FetchToken})(async ({fetch}) => {
+      const {url, args} = await fetch('/hello', {method: 'POST'});
+      t.equals(
+        called,
+        1,
+        'does not preflight if deserializing token from html'
+      );
+      t.equals(url, '/hello', 'ok url');
+      t.equals(args.credentials, 'same-origin', 'ok credentials');
+      t.equals(
+        args.headers['x-csrf-token'].split('-')[1],
+        '</script>token<script>',
+        'unescapes the token correctly'
+      );
+      document.body.removeChild(el);
+      t.end();
+    })
   );
-  document.body.removeChild(el);
-  t.end();
+  app.resolve();
 });
 
 test('defaults method to GET', async t => {
@@ -128,13 +129,21 @@ test('defaults method to GET', async t => {
       },
     });
   };
-  const app = new App('element', el => el);
-  const csrf = app.plugin(CsrfToken, {fetch}).of();
-  const {url, args} = await csrf.fetch('/hello');
-  t.equals(called, 1, 'does not preflight for GET requests');
-  t.equals(url, '/hello', 'ok url');
-  t.notok(args.headers['x-csrf-token'], 'does not send token on GET requests');
-  t.end();
+
+  const app = getApp(fetch);
+  app.register(
+    withDependencies({fetch: FetchToken})(async ({fetch}) => {
+      const {url, args} = await fetch('/hello');
+      t.equals(called, 1, 'does not preflight for GET requests');
+      t.equals(url, '/hello', 'ok url');
+      t.notok(
+        args.headers['x-csrf-token'],
+        'does not send token on GET requests'
+      );
+      t.end();
+    })
+  );
+  app.resolve();
 });
 
 test('fetch preflights if no token', t => {
@@ -153,18 +162,20 @@ test('fetch preflights if no token', t => {
       },
     });
   };
-  const csrf = CsrfToken({fetch}).of();
-  csrf.fetch('/test', {method: 'POST'}).then(({url, args}) => {
-    t.equals(called, 2, 'preflight works');
-    t.equals(url, '/test', 'ok url');
-    t.equals(args.credentials, 'same-origin', 'ok credentials');
-    t.equals(args.headers['x-csrf-token'].split('-')[1], 'test', 'ok token');
-
-    return csrf.fetch('/foo', {method: 'POST'}).then(() => {
+  const app = getApp(fetch);
+  app.register(
+    withDependencies({fetch: FetchToken})(async ({fetch}) => {
+      const {url, args} = await fetch('/test', {method: 'POST'});
+      t.equals(called, 2, 'preflight works');
+      t.equals(url, '/test', 'ok url');
+      t.equals(args.credentials, 'same-origin', 'ok credentials');
+      t.equals(args.headers['x-csrf-token'].split('-')[1], 'test', 'ok token');
+      await fetch('/foo', {method: 'POST'});
       t.equals(called, 3, 'no preflight if token exists');
       t.end();
-    });
-  });
+    })
+  );
+  app.resolve();
 });
 
 test('fetch preflights if token is expired', t => {
@@ -183,18 +194,21 @@ test('fetch preflights if token is expired', t => {
       },
     });
   };
-  const csrf = CsrfToken({fetch, expire: 1}).of();
-  csrf.fetch('/test', {method: 'POST'}).then(({url, args}) => {
-    t.equals(called, 2, 'preflight works');
-    t.equals(url, '/test', 'ok url');
-    t.equals(args.credentials, 'same-origin', 'ok credentials');
-    t.equals(args.headers['x-csrf-token'].split('-')[1], 'test', 'ok token');
+  const app = getApp(fetch);
+  app.configure(CSRFTokenExpire, 1);
+  app.register(
+    withDependencies({fetch: FetchToken})(async ({fetch}) => {
+      const {url, args} = await fetch('/test', {method: 'POST'});
+      t.equals(called, 2, 'preflight works');
+      t.equals(url, '/test', 'ok url');
+      t.equals(args.credentials, 'same-origin', 'ok credentials');
+      t.equals(args.headers['x-csrf-token'].split('-')[1], 'test', 'ok token');
 
-    setTimeout(() => {
-      csrf.fetch('/foo', {method: 'POST'}).then(() => {
-        t.equals(called, 4, 'preflight if token expired');
-        t.end();
-      });
-    }, 2000); // wait longer than expiration time
-  });
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      await fetch('/foo', {method: 'POST'});
+      t.equals(called, 4, 'preflight if token expired');
+      t.end();
+    })
+  );
+  app.resolve();
 });

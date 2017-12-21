@@ -1,5 +1,5 @@
 // @flow
-import {createOptionalToken} from 'fusion-types';
+import {createOptionalToken, createToken} from 'fusion-types';
 const methods = {POST: 1, PUT: 1, PATCH: 1, DELETE: 1};
 
 export function verifyMethod(method: string) {
