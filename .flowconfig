@@ -6,7 +6,7 @@
 
 [libs]
 ./node_modules/fusion-core/flow-typed
-./node_modules/fusion-types/flow-typed
+./node_modules/fusion-tokens/flow-typed
 
 [lints]
 

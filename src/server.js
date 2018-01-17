@@ -1,8 +1,5 @@
-// @flow
-declare var __DEV__: Boolean;
-
-import {GenericSessionToken} from 'fusion-types';
-import {html, withDependencies, withMiddleware} from 'fusion-core';
+import {GenericSessionToken} from 'fusion-tokens';
+import {html, createPlugin} from 'fusion-core';
 import crypto from 'crypto';
 import base64Url from 'base64-url';
 import {
@@ -11,6 +8,9 @@ import {
   CSRFIgnoreRoutes,
   CSRFTokenExpire,
 } from './shared';
+
+// @flow
+declare var __DEV__: Boolean;
 
 function generateSecret() {
   const random = crypto.randomBytes(32);
@@ -43,65 +43,65 @@ function loadOrGenerateSecret(session) {
   return secret;
 }
 
-const CsrfPlugin = withDependencies({
-  Session: GenericSessionToken,
-  expire: CSRFTokenExpire,
-  ignored: CSRFIgnoreRoutes,
-})(deps => {
-  const {Session, expire, ignored} = deps;
-  const ignoreSet = new Set(ignored);
-  function handleTokenPost(ctx, next) {
-    const session = Session.from(ctx);
-    const secret = loadOrGenerateSecret(session);
-    ctx.set('x-csrf-token', generateToken(secret));
-    ctx.status = 200;
-    ctx.body = '';
-    return next();
-  }
-
-  async function checkCSRF(ctx, next) {
-    const session = Session.from(ctx);
-
-    const token = ctx.headers['x-csrf-token'];
-    const secret = session.get('csrf-secret');
-    const isMatchingToken = verifyToken(secret, token);
-    const isValidToken = verifyExpiry(token, expire);
-    if (!isMatchingToken || !isValidToken) {
-      const message = __DEV__
-        ? 'CSRF Token configuration error: ' +
-          'add the option {fetch: CsrfToken.fetch} to ' +
-          'the 2nd argument of app.plugin(yourPlugin)'
-        : 'Invalid CSRF Token';
-      ctx.throw(403, message);
-    } else {
-      return next();
-    }
-  }
-
-  async function csrfMiddleware(ctx, next) {
-    if (ctx.path === '/csrf-token' && ctx.method === 'POST') {
-      return handleTokenPost(ctx, next);
-    } else if (verifyMethod(ctx.method) && !ignoreSet.has(ctx.path)) {
-      return checkCSRF(ctx, next);
-    } else {
+const CsrfPlugin = createPlugin({
+  deps: {
+    Session: GenericSessionToken,
+    expire: CSRFTokenExpire,
+    ignored: CSRFIgnoreRoutes,
+  },
+  provides: () => () =>
+    Promise.reject(new Error('Cannot use fetch on the server')),
+  middleware: deps => {
+    const {Session, expire, ignored} = deps;
+    const ignoreSet = new Set(ignored);
+    function handleTokenPost(ctx, next) {
       const session = Session.from(ctx);
       const secret = loadOrGenerateSecret(session);
-      if (ctx.element) {
-        const token = generateToken(secret);
-        ctx.template.body.push(
-          html`<script id="__CSRF_TOKEN__" type="application/json">${JSON.stringify(
-            token
-          )}</script>`
-        );
-      }
+      ctx.set('x-csrf-token', generateToken(secret));
+      ctx.status = 200;
+      ctx.body = '';
       return next();
     }
-  }
 
-  const serverSideFetch = () =>
-    Promise.reject(new Error('Cannot use fetch on the server'));
+    async function checkCSRF(ctx, next) {
+      const session = Session.from(ctx);
 
-  return withMiddleware(csrfMiddleware, serverSideFetch);
+      const token = ctx.headers['x-csrf-token'];
+      const secret = session.get('csrf-secret');
+      const isMatchingToken = verifyToken(secret, token);
+      const isValidToken = verifyExpiry(token, expire);
+      if (!isMatchingToken || !isValidToken) {
+        const message = __DEV__
+          ? 'CSRF Token configuration error: ' +
+            'add the option {fetch: CsrfToken.fetch} to ' +
+            'the 2nd argument of app.plugin(yourPlugin)'
+          : 'Invalid CSRF Token';
+        ctx.throw(403, message);
+      } else {
+        return next();
+      }
+    }
+
+    return async function csrfMiddleware(ctx, next) {
+      if (ctx.path === '/csrf-token' && ctx.method === 'POST') {
+        return handleTokenPost(ctx, next);
+      } else if (verifyMethod(ctx.method) && !ignoreSet.has(ctx.path)) {
+        return checkCSRF(ctx, next);
+      } else {
+        const session = Session.from(ctx);
+        const secret = loadOrGenerateSecret(session);
+        if (ctx.element) {
+          const token = generateToken(secret);
+          ctx.template.body.push(
+            html`<script id="__CSRF_TOKEN__" type="application/json">${JSON.stringify(
+              token
+            )}</script>`
+          );
+        }
+        return next();
+      }
+    };
+  },
 });
 
 export default CsrfPlugin;
