@@ -29,7 +29,6 @@
     "base64-url": "^2.0.1"
   },
   "devDependencies": {
-    "@babel/plugin-transform-flow-strip-types": "7.0.0-beta.37",
     "@babel/preset-react": "7.0.0-beta.37",
     "babel-eslint": "8.2.1",
     "body-parser": "1.18.2",
