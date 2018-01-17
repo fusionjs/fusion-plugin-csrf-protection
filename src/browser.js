@@ -10,7 +10,6 @@ const BrowserCSRFPlugin = createPlugin({
     expire: CSRFTokenExpire,
   },
   provides: ({fetch, expire}) => {
-    // TODO: How does route prefix fit into this?
     const prefix = window.__ROUTE_PREFIX__ || ''; // created by fusion-core/src/server
     const tokenElement = document.getElementById('__CSRF_TOKEN__');
 
