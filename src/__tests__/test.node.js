@@ -1,9 +1,7 @@
 import App from 'fusion-core';
-import {request, render} from 'fusion-test-utils';
 import test from 'tape-cup';
 import {GenericSessionToken} from 'fusion-tokens';
 import {getSimulator} from 'fusion-test-utils';
-import App from 'fusion-core';
 import CsrfPlugin from '../server';
 import {CSRFTokenExpire, CSRFIgnoreRoutes} from '../shared';
 
