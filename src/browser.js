@@ -10,7 +10,7 @@ import {unescape, createPlugin} from 'fusion-core';
 import {FetchToken} from 'fusion-tokens';
 import {verifyMethod, verifyExpiry, CSRFTokenExpire} from './shared';
 
-const BrowserCSRFPlugin = createPlugin({
+const BrowserCSRFPlugin = __BROWSER__ && createPlugin({
   deps: {
     fetch: FetchToken,
     expire: CSRFTokenExpire,
@@ -55,4 +55,4 @@ const BrowserCSRFPlugin = createPlugin({
   },
 });
 
-export default BrowserCSRFPlugin;
+export default __BROWSER__ && BrowserCSRFPlugin;

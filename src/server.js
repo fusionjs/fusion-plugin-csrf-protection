@@ -49,7 +49,7 @@ function loadOrGenerateSecret(session) {
   return secret;
 }
 
-const CsrfPlugin = createPlugin({
+const CsrfPlugin = __NODE__ && createPlugin({
   deps: {
     Session: SessionToken,
     expire: CSRFTokenExpire,
