@@ -11,6 +11,7 @@ import {FetchToken} from 'fusion-tokens';
 import {verifyMethod, verifyExpiry, CSRFTokenExpire} from './shared';
 
 const BrowserCSRFPlugin =
+  // $FlowFixMe
   __BROWSER__ &&
   createPlugin({
     deps: {

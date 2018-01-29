@@ -50,6 +50,7 @@ function loadOrGenerateSecret(session) {
 }
 
 const CsrfPlugin =
+  // $FlowFixMe
   __NODE__ &&
   createPlugin({
     deps: {
