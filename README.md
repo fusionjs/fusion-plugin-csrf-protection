@@ -73,11 +73,12 @@ app.register(SessionToken, Session);
 The `fusion-plugin-csrf-protection` module provides an api that matches the `fetch` api,
 and therefore can be registered on the standard `FetchToken` exported by `fusion-tokens`.
 
-* `fetch: (url: string, options: Object) => Promise` - A [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) implementation.
-* `expires: number` - Optional. Defaults to 86400 (seconds). When to expire the token.
-* `ignoredRoutes: Array<string>` - Optional. Defaults to `[]`. A list of paths that should not be gated by CSRF protection. For example `['/_errors']` would allow error logging requests to `/_errors` to be sent without a CSRF token.
-* `Session` - a Session plugin, such as the one provided by [`fusion-plugin-jwt`](https://github.com/fusionjs/fusion-plugin-jwt).
-  The Session instance should expose a `get: (key: string) => string` and `set: (key: string, value: string) => string` methods.
+#### Dependencies
+
+* `FetchForCsrfToken` (required): `(url: string, options: Object) => Promise` - A [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) implementation.
+* `CsrfExpireToken` (optional): `number` - When to expire the token.  Defaults to 86400 (seconds).
+* `CsrfIgnoreRoutesToken` (optional): `Array<string>` - A list of paths that should not be gated by CSRF protection. For example `['/_errors']` would allow error logging requests to `/_errors` to be sent without a CSRF token.  Defaults to `[]`.
+* `SessionToken` (required): `Session` - A Session plugin, such as the one provided by [`fusion-plugin-jwt`](https://github.com/fusionjs/fusion-plugin-jwt).  The Session instance should expose a `get: (key: string) => string` and `set: (key: string, value: string) => string` methods.
 
 #### Instance API
 
