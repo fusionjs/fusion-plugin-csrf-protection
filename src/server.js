@@ -52,8 +52,8 @@ function loadOrGenerateSecret(session) {
   return secret;
 }
 
-const plugin: FusionPlugin<CsrfDepsType, CsrfServiceType> =
-  // __NODE__ &&
+const plugin =
+  __NODE__ &&
   createPlugin({
     deps: {
       Session: SessionToken,
