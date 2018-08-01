@@ -21,7 +21,8 @@
     "./dist/browser.es2015.es.js": "./dist/browser.es2017.es.js"
   },
   "dependencies": {
-    "base64-url": "^2.2.0"
+    "base64-url": "^2.2.0",
+    "eslint-plugin-jest": "^21.18.0"
   },
   "devDependencies": {
     "@babel/preset-react": "7.0.0-beta.55",
