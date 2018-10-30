@@ -25,7 +25,7 @@ const enhancer = (fetch: Fetch) => {
       credentials: 'same-origin',
       headers: {
         ...((options && options.headers) || {}),
-        'x-csrf-token': 'token',
+        'x-csrf-token': 'x',
       },
     });
   };

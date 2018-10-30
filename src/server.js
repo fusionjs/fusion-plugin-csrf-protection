@@ -28,7 +28,7 @@ const enhancer = (oldFetch: Fetch) => {
       return async function csrfMiddleware(ctx, next) {
         if (ctx.path === '/csrf-token' && ctx.method === 'POST') {
           // TODO(#158): Remove this once clients have had the opportunity to upgrade
-          ctx.set('x-csrf-token', 'token');
+          ctx.set('x-csrf-token', 'x');
           ctx.status = 200;
           ctx.body = '';
         } else if (verifyMethod(ctx.method) && !ignoreSet.has(ctx.path)) {

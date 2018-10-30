@@ -49,7 +49,7 @@ test('valid token', async t => {
   const ctx = await sim.request('/test', {
     method: 'POST',
     headers: {
-      'x-csrf-token': 'token',
+      'x-csrf-token': 'x',
     },
   });
   t.equal(ctx.status, 200);

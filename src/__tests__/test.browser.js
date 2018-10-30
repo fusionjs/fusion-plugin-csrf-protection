@@ -67,7 +67,7 @@ test('includes routePrefix if exists', async t => {
         const {url, args} = await fetch('/hello', {method: 'POST'});
         t.equals(url, '/something/hello', 'ok url');
         t.equals(args.credentials, 'same-origin', 'ok credentials');
-        t.equals(args.headers['x-csrf-token'], 'token', 'sends token');
+        t.equals(args.headers['x-csrf-token'], 'x', 'sends token');
         delete window.__ROUTE_PREFIX__;
         t.end();
       },
@@ -97,7 +97,7 @@ test('sends token on POST', async t => {
         const {url, args} = await fetch('/hello', {method: 'POST'});
         t.equals(url, '/hello', 'ok url');
         t.equals(args.credentials, 'same-origin', 'ok credentials');
-        t.equal(args.headers['x-csrf-token'], 'token');
+        t.equal(args.headers['x-csrf-token'], 'x');
         t.end();
       },
     })
