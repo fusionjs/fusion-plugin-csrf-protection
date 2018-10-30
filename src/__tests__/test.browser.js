@@ -123,12 +123,9 @@ test('defaults method to GET', async t => {
       deps: {fetch: FetchToken},
       provides: async ({fetch}) => {
         // $FlowFixMe
-        const {url, args} = await fetch('/hello', {headers: {}});
+        const {url, args} = await fetch('/hello');
         t.equals(url, '/hello', 'ok url');
-        t.notok(
-          args.headers['x-csrf-token'],
-          'does not send token on GET requests'
-        );
+        t.notok(args.headers, 'does not send token on GET requests');
         t.end();
       },
     })

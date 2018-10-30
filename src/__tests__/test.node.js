@@ -9,7 +9,7 @@
 /* eslint-env node */
 import test from 'tape-cup';
 
-import App from 'fusion-core';
+import App, {createPlugin} from 'fusion-core';
 import {FetchToken} from 'fusion-tokens';
 import {getSimulator} from 'fusion-test-utils';
 
@@ -113,4 +113,20 @@ test('does not verify ignored paths', async t => {
   });
   t.equal(ctx.status, 200);
   t.end();
+});
+
+test('throws if fetch is used on server', async t => {
+  const app = getApp();
+  app.register(
+    createPlugin({
+      deps: {fetch: FetchToken},
+      provides: ({fetch}) => {
+        fetch('/test').catch(e => {
+          t.ok(e, 'throws on server');
+          t.end();
+        });
+      },
+    })
+  );
+  getSimulator(app);
 });
